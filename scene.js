@@ -42,6 +42,138 @@
                 "",
                 "\"Students, instructors, and designers need a lightweight, browser-based 3D editor that lowers the barrier to entry while supporting the full workflow from creation to export.\""
             ]
+        },
+        "screen 2": {
+            title: "TARGET USERS",
+            body: [
+                "Who Lumina Studio Serves",
+                "",
+                "Students",
+                "• Need: Learn interactive 3D scene composition",
+                "• Pain Point Solved: Browser-based access removes installation barriers",
+                "",
+                "Instructors",
+                "• Need: Demonstrate 3D structure and transforms",
+                "• Pain Point Solved: Simple UI for teaching concepts without tool complexity",
+                "",
+                "Designers & Prototypers",
+                "• Need: Rapid, lightweight scene creation",
+                "• Pain Point Solved: Quick iteration without heavy software overhead",
+                "",
+                "Developers",
+                "• Need: Extensible Django + Three.js foundation",
+                "• Pain Point Solved: Easy-to-extend local project with familiar stack",
+                "",
+                "Small Teams",
+                "• Need: Experiment with sharing workflows",
+                "• Pain Point Solved: Built-in permissions and collaboration features"
+            ]
+        },
+        "screen 3": {
+            title: "PROBLEM OBJECTIVES",
+            body: [
+                "What Lumina Studio Aims to Achieve",
+                "",
+                "Democratize 3D Creation",
+                "• Enable browser-based 3D editing without installation or high-end hardware",
+                "• Support fundamental operations: create, transform, group, and export",
+                "",
+                "Streamline Project Lifecycle",
+                "• Unify creation, saving, sharing, and export in one integrated platform",
+                "• Eliminate context-switching between multiple tools",
+                "",
+                "Enable Accessible Collaboration",
+                "• Support project sharing with granular permissions (owner/editor)",
+                "• Maintain single source of truth while allowing multi-user editing",
+                "",
+                "Facilitate Learning & Discovery",
+                "• Provide guided onboarding through tutorial mode",
+                "• Build community features for project discovery and inspiration",
+                "",
+                "Ensure Portability",
+                "• Generate standalone web exports (ZIP with HTML/JS/JSON)",
+                "• Make scenes runnable anywhere without the editor"
+            ]
+        },
+        "screen 4": {
+            title: "SYSTEM OVERVIEW",
+            body: [
+                "Architecture: Three-Tier Design",
+                "",
+                "PRESENTATION LAYER (Templates)",
+                "• Landing • Auth • Dashboard • Editor",
+                "",
+                "FRONTEND INTERACTION LAYER (JS)",
+                "• Three.js • State Management • UI • Export",
+                "",
+                "APPLICATION LAYER (Django Views)",
+                "• Auth • Project APIs • Community APIs",
+                "",
+                "DATA LAYER (SQLite Models)",
+                "• Users • Project Library • Editor Access",
+                "",
+                "Technology Stack",
+                "• Backend Framework: Django",
+                "• Database: SQLite",
+                "• Authentication: Django Built-in Auth",
+                "• 3D Rendering: Three.js",
+                "• Frontend UI: Django Templates + Vanilla JS + CSS",
+                "• Export Format: Standalone HTML/JS/JSON ZIP"
+            ]
+        },
+        "screen 5": {
+            title: "KEY FEATURES",
+            body: [
+                "Editor Capabilities",
+                "• Primitives: Box, sphere, cylinder, cone, torus, plane",
+                "• Special Objects: Camera objects, 3D text with custom content",
+                "• Transforms: Move (W), Rotate (E), Scale (R) in local/world space",
+                "• Scene Management: Hierarchy, grouping, multi-select, undo/redo",
+                "• Environment: Background color, fog controls, glow effects",
+                "• Advanced: JSON panel editing, preview mode",
+                "",
+                "Project Workflow",
+                "• Per-user saved project library with naming and visibility (public/private)",
+                "• CRUD operations: create, rename, save, update, delete",
+                "• \"Add to Scene\" imports without replacing existing content",
+                "• Storage usage tracking",
+                "",
+                "Collaboration & Discovery",
+                "• Invite registered users as project editors",
+                "• Community people search (username/email)",
+                "• Community public project browser",
+                "• Save public projects to personal library",
+                "",
+                "Export & Distribution",
+                "• Standalone web export (ZIP packaging)",
+                "• Generated folder named from project title",
+                "• Self-contained files: index.html, scene.js, scene.json",
+                "",
+                "Guided Experience",
+                "• Tutorial mode with step-by-step callouts",
+                "• Auto-starts on first visit",
+                "• Persistent completion state in localStorage"
+            ]
+        },
+        "screen 6": {
+            title: "CONCLUSION",
+            body: [
+                "Lumina Studio's Value Proposition",
+                "✓ Lowers Barriers: Browser-based access makes 3D creation available to anyone, anywhere",
+                "✓ Unifies Workflow: Single platform covers creation → management → collaboration → export",
+                "✓ Supports Learning: Tutorial mode and simple UI designed for educational contexts",
+                "✓ Enables Sharing: Built-in permissions and community features foster collaboration",
+                "✓ Ensures Portability: Standalone exports run independently of the editor",
+                "",
+                "Impact Summary",
+                "Lumina Studio bridges the gap between complex professional 3D software and basic web tools, providing an accessible yet capable environment for learning, prototyping, and sharing interactive 3D scenes.",
+                "",
+                "Future Trajectory",
+                "• Project thumbnails and rendered previews",
+                "• Richer collaboration roles and real-time editing",
+                "• Admin moderation and enhanced community discovery",
+                "• Production deployment configuration"
+            ]
         }
     });
 
@@ -792,7 +924,7 @@
     }
 
     function findPrimaryScreenSurface(object3d) {
-        let bestMatch = null;
+        const candidates = [];
         let bestScore = -1;
 
         object3d.traverse(function (child) {
@@ -805,14 +937,44 @@
                 return right - left;
             });
             const score = dimensions[0] * dimensions[1];
+            if (score <= 0) {
+                return;
+            }
 
-            if (score > bestScore) {
-                bestScore = score;
-                bestMatch = child;
+            candidates.push({ child: child, score: score });
+            bestScore = Math.max(bestScore, score);
+        });
+
+        if (!candidates.length) {
+            return object3d;
+        }
+
+        candidates.sort(function (left, right) {
+            return right.score - left.score;
+        });
+
+        const topCandidates = candidates.filter(function (entry) {
+            return entry.score >= bestScore * 0.999;
+        });
+
+        if (topCandidates.length === 1 || !camera) {
+            return topCandidates[0].child;
+        }
+
+        let bestMatch = topCandidates[0].child;
+        let bestFacing = Number.NEGATIVE_INFINITY;
+        topCandidates.forEach(function (entry) {
+            entry.child.getWorldQuaternion(reusableQuaternionA);
+            const worldForward = new THREE.Vector3(0, 0, 1).applyQuaternion(reusableQuaternionA).normalize();
+            const viewDirection = reusableVectorA.copy(camera.position).sub(entry.child.getWorldPosition(new THREE.Vector3())).normalize();
+            const facing = worldForward.dot(viewDirection);
+            if (facing > bestFacing) {
+                bestFacing = facing;
+                bestMatch = entry.child;
             }
         });
 
-        return bestMatch || object3d;
+        return bestMatch;
     }
 
     function getProjectedSpan(bounds, axis) {
@@ -830,6 +992,64 @@
         });
 
         return max - min;
+    }
+
+    function getMeshScreenFrame(mesh) {
+        if (!mesh || !mesh.isMesh) {
+            return null;
+        }
+
+        const bounds = new THREE.Box3().setFromObject(mesh);
+        const target = bounds.getCenter(new THREE.Vector3());
+        const surfaceSize = getGeometryWorldSize(mesh);
+        const axisNames = ['x', 'y', 'z'];
+        const sizeByAxis = { x: surfaceSize.x, y: surfaceSize.y, z: surfaceSize.z };
+        const sortedAxes = axisNames.slice().sort(function (left, right) {
+            return sizeByAxis[left] - sizeByAxis[right];
+        });
+        const thinAxis = sortedAxes[0];
+        const planeAxes = sortedAxes.slice(1);
+
+        mesh.getWorldQuaternion(reusableQuaternionA);
+        const worldAxes = {
+            x: new THREE.Vector3(1, 0, 0).applyQuaternion(reusableQuaternionA).normalize(),
+            y: new THREE.Vector3(0, 1, 0).applyQuaternion(reusableQuaternionA).normalize(),
+            z: new THREE.Vector3(0, 0, 1).applyQuaternion(reusableQuaternionA).normalize()
+        };
+
+        const upAxisName = planeAxes.slice().sort(function (left, right) {
+            return Math.abs(worldAxes[right].dot(new THREE.Vector3(0, 1, 0)))
+                - Math.abs(worldAxes[left].dot(new THREE.Vector3(0, 1, 0)));
+        })[0];
+        const horizontalAxisName = planeAxes.find(function (axisName) {
+            return axisName !== upAxisName;
+        }) || planeAxes[0];
+
+        const normal = worldAxes[thinAxis].clone().normalize();
+        const up = worldAxes[upAxisName].clone().normalize();
+        const horizontal = worldAxes[horizontalAxisName].clone().normalize();
+
+        if (up.dot(new THREE.Vector3(0, 1, 0)) < 0) {
+            up.multiplyScalar(-1);
+        }
+
+        const viewReference = reusableVectorA.copy(camera.position).sub(target);
+        if (viewReference.lengthSq() < 0.0001) {
+            viewReference.set(0, 0, 1);
+        }
+
+        if (normal.dot(viewReference) < 0) {
+            normal.multiplyScalar(-1);
+        }
+
+        return {
+            center: target,
+            normal: normal,
+            up: up,
+            horizontal: horizontal,
+            width: Math.max(getProjectedSpan(bounds, horizontal), 0.4),
+            height: Math.max(getProjectedSpan(bounds, up), 0.4)
+        };
     }
 
     function getFrontFacingViewForObject(object3d) {
@@ -874,51 +1094,73 @@
     }
 
     function createScreenContentTexture(contentDefinition) {
+        const width = 1024;
+        const marginX = 72;
+        const marginY = 90;
+        const maxWidth = width - marginX * 2;
+
         const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 1400;
+        const measuringContext = canvas.getContext('2d');
+        measuringContext.textBaseline = 'top';
 
-        const context = canvas.getContext('2d');
-        const marginX = 74;
-        let cursorY = 126;
-        const maxWidth = canvas.width - marginX * 2;
+        const lines = [];
+        const addLineBlock = function (text, font, fillStyle, lineHeight, spacing) {
+            measuringContext.font = font;
+            const wrapped = wrapCanvasText(measuringContext, text, maxWidth);
+            wrapped.forEach(function (line, index) {
+                lines.push({
+                    text: line,
+                    font: font,
+                    fillStyle: fillStyle,
+                    lineHeight: lineHeight,
+                    spacing: index === wrapped.length - 1 ? spacing : 6
+                });
+            });
+        };
 
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        context.fillStyle = '#0f1620';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-
-        context.strokeStyle = 'rgba(148, 163, 184, 0.28)';
-        context.lineWidth = 4;
-        context.strokeRect(14, 14, canvas.width - 28, canvas.height - 28);
-
-        context.fillStyle = '#f8fafc';
-        context.font = '700 48px Segoe UI';
-        context.fillText(contentDefinition.title || 'CONTENT', marginX, cursorY);
-        cursorY += 66;
-
-        context.fillStyle = '#67e8f9';
-        context.font = '600 24px Segoe UI';
-        context.fillText('LUMINA STUDIO EDITOR', marginX, cursorY);
-        cursorY += 70;
+        addLineBlock(contentDefinition.title || 'CONTENT', '700 44px Segoe UI', '#f8fafc', 52, 18);
+        addLineBlock('LUMINA STUDIO EDITOR', '600 24px Segoe UI', '#67e8f9', 30, 24);
 
         (Array.isArray(contentDefinition.body) ? contentDefinition.body : []).forEach(function (paragraph) {
             if (!paragraph) {
-                cursorY += 24;
+                lines.push({ text: '', font: '400 24px Segoe UI', fillStyle: '#cbd5e1', lineHeight: 28, spacing: 20 });
                 return;
             }
 
             const isQuote = /^"/.test(paragraph);
             const isHeadline = !/^•/.test(paragraph) && !isQuote;
+            const font = isHeadline ? '600 30px Segoe UI' : (isQuote ? 'italic 26px Segoe UI' : '400 24px Segoe UI');
+            const fillStyle = isQuote ? '#c7d2fe' : (isHeadline ? '#dbeafe' : '#cbd5e1');
+            const lineHeight = isHeadline ? 34 : 28;
+            const spacing = isHeadline ? 16 : 12;
 
-            context.fillStyle = isQuote ? '#c7d2fe' : (isHeadline ? '#dbeafe' : '#cbd5e1');
-            context.font = isHeadline ? '600 30px Segoe UI' : (isQuote ? 'italic 26px Segoe UI' : '400 26px Segoe UI');
+            addLineBlock(paragraph, font, fillStyle, lineHeight, spacing);
+        });
 
-            wrapCanvasText(context, paragraph, maxWidth).forEach(function (line) {
-                context.fillText(line, marginX, cursorY);
-                cursorY += isHeadline ? 40 : 38;
-            });
+        let totalHeight = marginY * 2 + 12;
+        lines.forEach(function (entry) {
+            totalHeight += entry.lineHeight + entry.spacing;
+        });
+        const height = Math.max(totalHeight, 1400);
+        canvas.width = width;
+        canvas.height = height;
 
-            cursorY += isHeadline ? 10 : 16;
+        const context = canvas.getContext('2d');
+        context.textBaseline = 'top';
+
+        context.fillStyle = '#0f1620';
+        context.fillRect(0, 0, width, height);
+
+        context.strokeStyle = 'rgba(148, 163, 184, 0.28)';
+        context.lineWidth = 4;
+        context.strokeRect(14, 14, width - 28, height - 28);
+
+        let cursorY = marginY;
+        lines.forEach(function (entry) {
+            context.font = entry.font;
+            context.fillStyle = entry.fillStyle;
+            context.fillText(entry.text, marginX, cursorY);
+            cursorY += entry.lineHeight + entry.spacing;
         });
 
         const texture = new THREE.CanvasTexture(canvas);
@@ -938,27 +1180,29 @@
                 return;
             }
 
-            const frame = getScreenSurfaceFrame(screenObject, sceneMetrics);
-            const texture = createScreenContentTexture(contentDefinition);
-            const plane = new THREE.Mesh(
-                new THREE.PlaneGeometry(frame.width * 0.84, frame.height * 0.84),
-                new THREE.MeshBasicMaterial({
-                    map: texture,
-                    transparent: true,
-                    side: THREE.DoubleSide
-                })
-            );
+            const surface = findPrimaryScreenSurface(screenObject);
+            if (!surface || !surface.isMesh) {
+                return;
+            }
 
-            plane.position.copy(frame.center).add(frame.normal.clone().multiplyScalar(0.035));
-            reusableMatrixA.makeBasis(frame.horizontal, frame.up, frame.normal);
-            plane.quaternion.setFromRotationMatrix(reusableMatrixA);
-            plane.userData = {
-                sourceId: (screenObject.userData && screenObject.userData.sourceId ? screenObject.userData.sourceId : 'screen') + '-content',
-                sourceName: sourceName + '-content',
-                sourceType: 'content'
-            };
-            mountedScreenDecorations.push(plane);
-            scene.add(plane);
+            const texture = createScreenContentTexture(contentDefinition);
+            if (texture && sourceName === 'screen 1') {
+                texture.repeat.set(-1, 1);
+                texture.offset.set(1, 0);
+                texture.needsUpdate = true;
+            }
+
+            const oldMaterial = surface.material;
+            surface.material = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                side: THREE.FrontSide
+            });
+            surface.material.needsUpdate = true;
+
+            if (oldMaterial && typeof oldMaterial.dispose === 'function') {
+                oldMaterial.dispose();
+            }
         });
     }
 
@@ -1255,38 +1499,6 @@
         return true;
     }
 
-    function resolveCameraCollision() {
-        if (!orbitControls || !collidableMeshes.length) {
-            return;
-        }
-
-        const target = orbitControls.target;
-        const desiredOffset = reusableVectorA.copy(camera.position).sub(target);
-        const desiredDistance = desiredOffset.length();
-
-        if (desiredDistance <= 0.0001) {
-            return;
-        }
-
-        desiredOffset.normalize();
-        reusableRaycaster.set(target, desiredOffset);
-        reusableRaycaster.far = desiredDistance;
-
-        const intersections = reusableRaycaster.intersectObjects(collidableMeshes, false);
-        if (!intersections.length) {
-            return;
-        }
-
-        const safetyDistance = Math.max(camera.near * 3, 0.2);
-        const collisionDistance = intersections[0].distance - safetyDistance;
-
-        if (collisionDistance <= 0) {
-            return;
-        }
-
-        camera.position.copy(target).add(desiredOffset.multiplyScalar(collisionDistance));
-    }
-
     function getCameraTarget(cameraData) {
         const position = cameraData && cameraData.position ? cameraData.position : DEFAULT_CAMERA.position;
         const rotation = cameraData && cameraData.rotation ? cameraData.rotation : DEFAULT_CAMERA.rotation;
@@ -1457,7 +1669,6 @@
             orbitControls.update();
         }
 
-        resolveCameraCollision();
         updateCameraFollowLights(elapsed);
         renderer.render(scene, camera);
     }
